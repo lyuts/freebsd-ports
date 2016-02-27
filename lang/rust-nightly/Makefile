@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PORTNAME=	rust-nightly
-PORTVERSION=	1.3.0.20150703
+PORTVERSION=	1.7.0.20160108
 CATEGORIES=	lang
 MASTER_SITES=	http://static.rust-lang.org/stage0-snapshots/:bootstrap
 DISTFILES=	${RUST_BOOT}:bootstrap
@@ -10,20 +10,8 @@ EXTRACT_ONLY=	${DISTNAME}${_GITHUB_EXTRACT_SUFX} \
 		${DISTFILE_compiler_rt} \
 		${DISTFILE_hoedown} \
 		${DISTFILE_jemalloc} \
+		${DISTFILE_liblibc} \
 		${DISTFILE_rust_installer}
-
-USE_GITHUB=	yes
-GH_ACCOUNT=	rust-lang
-GH_PROJECT=	rust \
-		compiler-rt:compiler_rt \
-		hoedown:hoedown \
-		jemalloc:jemalloc \
-		rust-installer:rust_installer
-GH_TAGNAME=	7b148381c7 \
-		58ab642:compiler_rt \
-		238c4d5:hoedown \
-		e24a1a0:jemalloc \
-		8e4f8ea:rust_installer
 
 MAINTAINER=	dumbbell@FreeBSD.org
 COMMENT=	Language with a focus on memory safety and concurrency
@@ -33,6 +21,22 @@ LICENSE=	APACHE20 \
 LICENSE_COMB=	dual
 LICENSE_FILE=	${WRKSRC}/LICENSE-APACHE \
 		${WRKSRC}/LICENSE-MIT
+
+USE_GITHUB=	yes
+GH_ACCOUNT=	rust-lang \
+			rust-lang-nursery:liblibc
+GH_PROJECT=	rust \
+		compiler-rt:compiler_rt \
+		hoedown:hoedown \
+		jemalloc:jemalloc \
+		libc:liblibc \
+		rust-installer:rust_installer
+GH_TAGNAME=	d70ab2b \
+		b6087e8:compiler_rt \
+		4638c60:hoedown \
+		f84e309:jemalloc \
+		e0c0bf4:liblibc \
+		4915c75:rust_installer
 
 ONLY_FOR_ARCHS=	amd64
 ONLY_FOR_ARCHS_REASON=	requires prebuilt bootstrap compiler
@@ -45,7 +49,7 @@ CONFLICTS_BUILD=	rust \
 CONFLICTS_INSTALL=	rust-nightly
 
 RUST_BOOT=	rust-stage0-${RUST_BOOT_SIG}.tar.bz2
-RUST_BOOT_SIG=	2015-05-24-ba0e1cd-freebsd-x86_64-370db40613f5c08563ed7e38357826dd42d4e0f8
+RUST_BOOT_SIG=	2015-12-18-3391630-freebsd-x86_64-91724d4e655807a2a2e940ac50992ebeaac16ea9
 
 # Rust's libraries are named librustc_${component}-${RUST_VSN_HASH}.so.
 # The hash depends on Rust version and, if the channel is not "stable",
@@ -59,7 +63,7 @@ PLIST_SUB+=	RUST_TARGET=x86_64-unknown-${OPSYS:tl}
 
 USES=		gmake libedit python:2,build
 HAS_CONFIGURE=	yes
-CONFIGURE_ARGS=	--disable-valgrind --disable-docs \
+CONFIGURE_ARGS=	--disable-valgrind-rpass --disable-docs \
 		--enable-clang --mandir=${MANPREFIX}/man \
 		--release-channel=${RUST_CHANNEL}
 
@@ -116,9 +120,11 @@ post-extract:
 	  ${MV} ${WRKSRC_jemalloc} ${WRKSRC}/src/jemalloc)
 	@(${RMDIR} ${WRKSRC}/src/rust-installer && \
 	  ${MV} ${WRKSRC_rust_installer} ${WRKSRC}/src/rust-installer)
+	@(${RMDIR} ${WRKSRC}/src/liblibc && \
+	  ${MV} ${WRKSRC_liblibc} ${WRKSRC}/src/liblibc)
 	@${MKDIR} ${WRKSRC}/dl
 	${LN} -sf ${DISTDIR}/${RUST_BOOT} ${WRKSRC}/dl
-	(cd ${WRKSRC} && find . -type d -exec chmod 0755 {} \;)
+	(cd ${WRKSRC} && ${FIND} . -type d -exec ${CHMOD} 0755 {} \;)
 
 post-patch:
 	@${REINPLACE_CMD} -e 's|%%LOCALBASE%%|${LOCALBASE}|' \
@@ -134,6 +140,11 @@ pre-install:
 		< ${STAGEDIR}${PREFIX}/lib/rustlib/manifest-rustc \
 		| ${XARGS} ${RM}; \
 	fi
+	@if test -f ${STAGEDIR}${PREFIX}/lib/rustlib/manifest-rust-std-x86_64-unknown-freebsd; then \
+		${SED} -E -e 's,^(dir|file:),${STAGEDIR},' \
+		< ${STAGEDIR}${PREFIX}/lib/rustlib/manifest-rust-std-x86_64-unknown-freebsd \
+		| ${XARGS} ${RM}; \
+	fi
 	@${RM} \
 		${STAGEDIR}${PREFIX}/lib/rustlib/components \
 		${STAGEDIR}${PREFIX}/lib/rustlib/manifest-rustc \
@@ -144,14 +155,19 @@ post-install:
 	@${RM} ${STAGEDIR}${PREFIX}/lib/rustlib/install.log
 	@${REINPLACE_CMD} -e 's|${STAGEDIR}||' \
 		${STAGEDIR}${PREFIX}/lib/rustlib/manifest-rustc
+	@${REINPLACE_CMD} -e 's|${STAGEDIR}||' \
+		${STAGEDIR}${PREFIX}/lib/rustlib/manifest-rust-std-x86_64-unknown-freebsd
 	@${RM} ${STAGEDIR}${PREFIX}/lib/rustlib/manifest-rustc.bak
+	@${RM} ${STAGEDIR}${PREFIX}/lib/rustlib/manifest-rust-std-x86_64-unknown-freebsd.bak
 	@${STRIP_CMD} \
 		${STAGEDIR}${PREFIX}/bin/rustc \
 		${STAGEDIR}${PREFIX}/bin/rustdoc \
 		${STAGEDIR}${PREFIX}/lib/*.so \
 		${STAGEDIR}${PREFIX}/lib/rustlib/*/lib/*.so
 .if ${PORT_OPTIONS:MDOCS}
-	@${MV} ${STAGEDIR}${PREFIX}/share/doc/rust ${STAGEDIR}${DOCSDIR}
+	@if ! test -d ${STAGEDIR}${DOCSDIR}; then \
+		${MV} ${STAGEDIR}${PREFIX}/share/doc/rust ${STAGEDIR}${DOCSDIR}; \
+	fi
 .endif
 
 .include <bsd.port.mk>
