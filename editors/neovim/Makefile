@@ -21,7 +21,7 @@ LIB_DEPENDS=	libunibilium.so:${PORTSDIR}/devel/unibilium \
 		libuv.so:${PORTSDIR}/devel/libuv \
 		libmsgpack.so:${PORTSDIR}/devel/msgpack
 
-USES=		cmake gettext-tools lua gmake pkgconfig
+USES=		cmake gettext-tools lua pkgconfig
 USE_GITHUB=	yes
 GH_TAGNAME=	b33c777
 
