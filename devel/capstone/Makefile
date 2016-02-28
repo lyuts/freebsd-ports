@@ -3,12 +3,15 @@
 PORTNAME=	capstone
 PORTVERSION=	3.0.4
 CATEGORIES=	devel
+PKGNAMESUFFIX= 3
 
 MAINTAINER=	oliver.pntr@gmail.com
 COMMENT=	Multi-platform, multi-architecture disassembly framework
 
 LICENSE=	BSD3CLAUSE
 LICENSE_FILE=	${WRKSRC}/LICENSE.TXT
+
+CONFLICTS_BUILD=    capstone4
 
 USES=		gmake
 USE_LDCONFIG=	yes
